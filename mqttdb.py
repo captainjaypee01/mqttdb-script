@@ -1,5 +1,8 @@
 import mysql.connector
 import sqlite3
+import datetime
+now = datetime.datetime.utcnow()
+utctime = (now.strftime("%Y-%m-%d %H:%M:%S"))
 
 nodeTypeList = ['EmerLight', 'ExitLight', 'Relay','FireExtinguisher', 'IndicatorPanel']
 nodeTypeTuple = tuple(nodeTypeList)
@@ -44,18 +47,28 @@ try:
     cursor.execute(GET_ALL_NODE_DETAILS_ACTIVE_LIST_QUERY)
     # get all records
     records = cursor.fetchall()
-    print("Total number of rows in table: ", cursor.rowcount)
-
+    recordString = '{utctime} | Total number of rows in table: ", {rowcount}'.format(
+                                    utctime=utctime,
+                                    rowcount=cursor.rowcount
+                                )
+    print(recordString)
     sqlite_cursor.executemany(INSERT_DATA_NODEDETAILS_TABLE_QUERY, records)
     sqlite_cursor.execute(GET_ALL_NODE_DETAILS_ACTIVE_LIST_QUERY)
     sqlite_connection.commit()
 
-    print("\nSuccess query") 
+    recordString = '{utctime} | Success query'.format(
+                                    utctime=utctime
+                                )
+    print(recordString) 
+    
 
 except mysql.connector.Error as e:
-    print("Error reading data from MySQL table", e)
+    print(utctime, "Error reading data from MySQL table", e)
 finally:
     if mysql_connection.is_connected():
         mysql_connection.close()
         cursor.close()
-        print("MySQL connection is closed")
+        
+        recordString = '{utctime} | MySQL connection is closed'.format( utctime=utctime  )
+        print(recordString)
+        print("==============================================")
