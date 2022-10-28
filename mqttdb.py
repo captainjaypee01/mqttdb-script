@@ -38,7 +38,7 @@ try:
                                          user='smart',
                                          password='Sm@r+M0n1t0r1n6')
 
-    sqlite_connection = sqlite3.connect("/home/pi/wirepas/mqttdb")
+    sqlite_connection = sqlite3.connect("/home/smart/wirepas/mqttdb")
     sqlite_cursor = sqlite_connection.cursor()
     sqlite_cursor.execute(DROP_TABLE_IF_EXIST_QUERY)
     sqlite_cursor.execute(CREATE_NODEDETAILS_TABLE_QUERY)
