@@ -1,17 +1,14 @@
-import mysql.connector
+# import mysql.connector
 import sqlite3
 import datetime
+import requests
+import json 
+
 now = datetime.datetime.utcnow()
 utctime = (now.strftime("%Y-%m-%d %H:%M:%S"))
 
-nodeTypeList = ['EmerLight', 'ExitLight', 'Relay','FireExtinguisher', 'IndicatorPanel']
-nodeTypeTuple = tuple(nodeTypeList)
-GET_ALL_NODE_DETAILS_ACTIVE_LIST_QUERY = """select NetworkID, NodeID, ServiceID, SystemID, AreaID, NodeType, Status, NodeName, postal_code, BuildingName, BuildingLevel, SectorName, ApplicationCode, ApplicationName 
-                                    from node_details 
-                                    where status='Active'
-                                    AND NodeType in {nodeTypes}
-                        """.format(nodeTypes=nodeTypeTuple)
-DROP_TABLE_IF_EXIST_QUERY = "DROP TABLE IF EXISTS node_details"
+DROP_TABLE_NODEDETAILS_IF_EXIST_QUERY = "DROP TABLE IF EXISTS node_details"
+DROP_TABLE_NODECONFIG_IF_EXIST_QUERY = "DROP TABLE IF EXISTS node_config"
 CREATE_NODEDETAILS_TABLE_QUERY = """CREATE TABLE node_details (
     NetworkID TEXT,
     NodeID TEXT,
@@ -28,47 +25,77 @@ CREATE_NODEDETAILS_TABLE_QUERY = """CREATE TABLE node_details (
     ApplicationCode TEXT,
     ApplicationName TEXT
 )"""
+CREATE_NODECONFIG_TABLE_QUERY = """CREATE TABLE node_config (
+    AreaID TEXT,
+    NodeType TEXT,
+    Config  TEXT,
+    ConfigName TEXT, 
+    Measurement TEXT,
+    UnitOfMeasurement TEXT
+)"""
 INSERT_DATA_NODEDETAILS_TABLE_QUERY = """
     INSERT INTO node_details(NetworkID,NodeID,ServiceID,SystemID,AreaID,NodeType,Status,NodeName,postal_code,BuildingName,BuildingLevel,SectorName,ApplicationCode,ApplicationName)
     VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?)
 """
-try:
-    mysql_connection = mysql.connector.connect(host='10.104.0.101',
-                                         database='smartnew',
-                                         user='smart',
-                                         password='Sm@r+M0n1t0r1n6')
+INSERT_DATA_NODECONFIG_TABLE_QUERY = """
+    INSERT INTO node_config(AreaID,NodeType,Config,ConfigName,Measurement,UnitOfMeasurement)
+    VALUES (?,?,?,?,?,?)
+"""
 
-    sqlite_connection = sqlite3.connect("/home/smart/wirepas/mqttdb")
-    sqlite_cursor = sqlite_connection.cursor()
-    sqlite_cursor.execute(DROP_TABLE_IF_EXIST_QUERY)
-    sqlite_cursor.execute(CREATE_NODEDETAILS_TABLE_QUERY)
-
-    cursor = mysql_connection.cursor()
-    cursor.execute(GET_ALL_NODE_DETAILS_ACTIVE_LIST_QUERY)
-    # get all records
-    records = cursor.fetchall()
-    recordString = '{utctime} | Total number of rows in table: ", {rowcount}'.format(
-                                    utctime=utctime,
-                                    rowcount=cursor.rowcount
-                                )
-    print(recordString)
-    sqlite_cursor.executemany(INSERT_DATA_NODEDETAILS_TABLE_QUERY, records)
-    sqlite_cursor.execute(GET_ALL_NODE_DETAILS_ACTIVE_LIST_QUERY)
-    sqlite_connection.commit()
-
+def executeSqliteQueryByTable(sqlite_cursor, DROPQUERY, CREATETABLEQUERY, INSERTQUERY, DATALIST):
+    
+    sqlite_cursor.execute(DROPQUERY)
+    sqlite_cursor.execute(CREATETABLEQUERY)
+    sqlite_cursor.executemany(INSERTQUERY, DATALIST)
+    
     recordString = '{utctime} | Success query'.format(
                                     utctime=utctime
                                 )
     print(recordString) 
-    
 
-except mysql.connector.Error as e:
-    print(utctime, "Error reading data from MySQL table", e)
+def printTotalRowsByTable(table, rowcount):
+    
+    recordString = '{utctime} | Total number of rows in table {table}: ", {rowcount}'.format(
+                                    utctime=utctime,
+                                    rowcount=rowcount,
+                                    table=table
+                                )
+    print(recordString)
+
+try:
+    fileArray = []
+    with open('/home/smart/wirepas/network') as file:
+        for line in file:
+            fileArray.append(line.strip('\n'))
+
+    networkid = fileArray[0]
+    res = requests.get('https://mapi-ljdigitalsmart.com/api/get-gateway-data/' + networkid)
+    jsonData = res.json()
+    nodeList = jsonData['nodeList']
+    configList = jsonData['configList']
+    configListValues = []
+    nodeListValues = []
+    for key in configList:
+        configListValues.append(list(key.values()))
+
+    for key in nodeList:
+        nodeListValues.append(list(key.values()))
+
+    printTotalRowsByTable('node details', len(jsonData['nodeList']))
+    printTotalRowsByTable('node config', len(jsonData['configList']))
+    DB_NAME = "/home/smart/wirepas/mqttdb"
+    sqlite_connection = sqlite3.connect(DB_NAME)
+    sqlite_cursor = sqlite_connection.cursor()
+    # print(nodeList)
+    executeSqliteQueryByTable(sqlite_cursor, DROP_TABLE_NODEDETAILS_IF_EXIST_QUERY, CREATE_NODEDETAILS_TABLE_QUERY, INSERT_DATA_NODEDETAILS_TABLE_QUERY, nodeListValues)
+    executeSqliteQueryByTable(sqlite_cursor, DROP_TABLE_NODECONFIG_IF_EXIST_QUERY, CREATE_NODECONFIG_TABLE_QUERY, INSERT_DATA_NODECONFIG_TABLE_QUERY, configListValues)
+
+
+except sqlite3.Error as e:
+    print(utctime, "Error reading data from SQLite3 table", e)
 finally:
-    if mysql_connection.is_connected():
-        mysql_connection.close()
-        cursor.close()
-        
-        recordString = '{utctime} | MySQL connection is closed'.format( utctime=utctime  )
-        print(recordString)
-        print("==============================================")
+    sqlite_connection.close()
+    recordString = '{utctime} | SQLite3 connection is closed'.format( utctime=utctime  )
+    print(recordString)
+    print("==============================================")
+# print(response)
