@@ -4,7 +4,7 @@ import datetime
 import requests
 import json 
 
-CURRENT_ENV = 'PROD'
+CURRENT_ENV = 'LOCAL'
 now = datetime.datetime.utcnow()
 utctime = (now.strftime("%Y-%m-%d %H:%M:%S"))
 
@@ -81,8 +81,8 @@ env_apikey_url = {
     'LOCAL': 'api_key' 
 }
 env_db_name = {
-    'PROD': "/home/smart/wirepas/database/mqttdb",
-    'UAT': "/home/smart/wirepas/database/mqttdb",
+    'PROD': "/home/smart/wirepas/mqttdb",
+    'UAT': "/home/smart/wirepas/mqttdb",
     'LOCAL': 'mqttdb'
 }
 
@@ -144,7 +144,7 @@ try:
 
     network_address=networkid
     status='Active'
-    # GET_NODELIST_QUERY = 'SELECT * FROM node_details'
+    
     GET_INDICATOR_NODEID_BY_ID_QUERY = 'SELECT NodeID FROM node_details where Status="{status}" AND NetworkID = "{network}" AND NodeType="IndicatorPanel"'.format(
                             network=network_address,
                             status=status
@@ -156,12 +156,10 @@ try:
     
     if indicatorNodes != None and len(indicatorNodes) != 0:
         for indicatorNode in indicatorNodes:
-            print(indicatorNode, "exist")
+            print(indicatorNode, "meron")
     else:
-        print("No indicator found")
+        print("shits")
 
-    sqlite_connection.commit()
-    
 except sqlite3.Error as e:
     print(utctime, "Error reading data from SQLite3 table", e)
 except FileNotFoundError as e:
