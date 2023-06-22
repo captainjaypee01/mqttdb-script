@@ -1,6 +1,6 @@
-from Crypto.Cipher import AES
-from Crypto.Util.Padding import pad
 import base64
+from Crypto.Cipher import AES
+from Crypto.Util.Padding import unpad
 
 def read_aes_key_from_file(file_path):
     with open(file_path, 'r') as file:
@@ -8,35 +8,36 @@ def read_aes_key_from_file(file_path):
     aes_key_bytes = bytes.fromhex(aes_key_hex)
     return aes_key_bytes
 
-def encrypt_file(input_file, output_file, key):
+def decrypt_file(input_file, output_file, key):
     cipher = AES.new(key, AES.MODE_ECB)
     with open(input_file, 'rb') as file:
-        plaintext = file.read()
-    padded_plaintext = pad(plaintext, AES.block_size)
-    ciphertext = cipher.encrypt(padded_plaintext)
-    encoded_ciphertext = base64.b64encode(ciphertext)
+        encoded_ciphertext = file.read()
+
+    ciphertext = base64.b64decode(encoded_ciphertext)
+    decrypted_data = cipher.decrypt(ciphertext)
+    plaintext = unpad(decrypted_data, AES.block_size)
     with open(output_file, 'wb') as file:
-        file.write(encoded_ciphertext)
+        file.write(plaintext)
 
-CURRENT_ENV = "PROD"
-
+CURRENT_ENV = "LOCAL"
 env_aes_file = {
     "LOCAL": "aes-key",
     "PROD": '/boot/wirepas/aes-key',
 }
 env_input_file = {
-    "LOCAL": "network",
-    "PROD": '/home/smart/wirepas/network'
-}
-env_output_file = {
     "LOCAL": "network.bin",
     "PROD": '/home/smart/wirepas/network.bin'
 }
-
+env_output_file = {
+    "LOCAL": "decrypted.txt",
+    "PROD": '/home/smart/wirepas/decrypted.txt'
+}
+# Example usage
 aes_file = env_aes_file[CURRENT_ENV]
 input_file = env_input_file[CURRENT_ENV]
 output_file = env_output_file[CURRENT_ENV]
 
 key = read_aes_key_from_file(aes_file)
 
-encrypt_file(input_file, output_file, key)
+print('key', key)
+decrypt_file(input_file, output_file, key)
