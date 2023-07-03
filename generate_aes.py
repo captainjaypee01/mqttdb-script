@@ -6,12 +6,11 @@ def generate_aes_key():
     return key
 
 def export_aes_key(key, output_file):
-    print('generate byte key', key)
     key_hex = key.hex()  # Convert the key to hexadecimal string
     with open(output_file, 'w') as file:
         file.write(key_hex)
 
-CURRENT_ENV = "PROD"
+CURRENT_ENV = "LOCAL"
 env_output_file = {
     "LOCAL": "aes-key",
     "PROD": '/boot/wirepas/aes-key',

@@ -3,6 +3,32 @@ import sqlite3
 import datetime
 import requests
 import json 
+import base64
+from Crypto.Cipher import AES
+from Crypto.Util.Padding import unpad
+
+def read_aes_key_from_file(file_path):
+    with open(file_path, 'r') as file:
+        aes_key_hex = file.read().strip()
+    aes_key_bytes = bytes.fromhex(aes_key_hex)
+    return aes_key_bytes
+
+def decrypt_file(input_file, key):
+    cipher = AES.new(key, AES.MODE_ECB)
+    with open(input_file, 'rb') as file:
+        encoded_ciphertext = file.read()
+
+    ciphertext = base64.b64decode(encoded_ciphertext)
+    decrypted_data = cipher.decrypt(ciphertext)
+    plaintext = unpad(decrypted_data, AES.block_size)
+    plaintext_lines = plaintext.decode().splitlines()
+
+    if len(plaintext_lines) == 2:
+        networkid = plaintext_lines[0]
+        sinkid = plaintext_lines[1]
+        return networkid, sinkid
+    else:
+        raise ValueError("Invalid number of lines in the decrypted file.")
 
 CURRENT_ENV = 'PROD'
 now = datetime.datetime.utcnow()
@@ -70,11 +96,6 @@ env_api_url = {
     'UAT': 'https://192.168.3.154/api/get-gateway-data/',
     'LOCAL': 'http://localhost:9091/api/get-gateway-data/' 
 }
-env_network_url = {
-    'PROD': '/home/smart/wirepas/network',
-    'UAT': '/home/smart/wirepas/network',
-    'LOCAL': 'network' 
-}
 env_apikey_url = {
     'PROD': '/boot/wirepas/api_key',
     'UAT': '/boot/wirepas/api_key',
@@ -85,22 +106,30 @@ env_db_name = {
     'UAT': "/home/smart/wirepas/database/mqttdb",
     'LOCAL': 'mqttdb'
 }
+env_aes_file = {
+    "LOCAL": "aes-key",
+    "UAT": '/boot/wirepas/aes-key',
+    "PROD": '/boot/wirepas/aes-key',
+}
+env_network_file = {
+    "LOCAL": "network.bin",
+    "UAT": '/home/smart/wirepas/network.bin',
+    "PROD": '/home/smart/wirepas/network.bin'
+}
 
 DB_NAME = env_db_name[CURRENT_ENV]
 sqlite_connection = sqlite3.connect(DB_NAME)
 try:
-
-    networkFile = []
-    with open(env_network_url[CURRENT_ENV]) as file:
-        for line in file:
-            networkFile.append(line.strip('\n'))
             
     apiFile = []
     with open(env_apikey_url[CURRENT_ENV]) as file:
         for line in file:
             apiFile.append(line.strip('\n'))
 
-    networkid = networkFile[0]
+    aes_file = env_aes_file[CURRENT_ENV]
+    input_file = env_network_file[CURRENT_ENV]
+    key = read_aes_key_from_file(aes_file)
+    networkid, sinkid = decrypt_file(input_file, key)
     app_key = apiFile[0]
     data = {'app_key': app_key, 'access_name': 'smart_gateway_' + networkid}
     
@@ -161,7 +190,7 @@ try:
         print("No indicator found")
 
     sqlite_connection.commit()
-    
+
 except sqlite3.Error as e:
     print(utctime, "Error reading data from SQLite3 table", e)
 except FileNotFoundError as e:
