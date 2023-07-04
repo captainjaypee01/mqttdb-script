@@ -31,6 +31,8 @@ def decrypt_file(input_file, key):
         raise ValueError("Invalid number of lines in the decrypted file.")
 
 CURRENT_ENV = 'LOCAL'
+API_ENV = 'POC'
+
 now = datetime.datetime.utcnow()
 utctime = (now.strftime("%Y-%m-%d %H:%M:%S"))
 
@@ -91,8 +93,13 @@ def printTotalRowsByTable(table, rowcount):
     print(recordString)
 
 
+API_URL = {
+    'POC': 'https://mapi-ljdigitalsmart.com/api/get-gateway-data/',
+    'AZURE': 'https://ljd-az-api01.southeastasia.cloudapp.azure.com',
+}
+
 env_api_url = {
-    'PROD': 'https://mapi-ljdigitalsmart.com/api/get-gateway-data/',
+    'PROD': API_URL[API_ENV],
     'UAT': 'https://192.168.3.154/api/get-gateway-data/',
     'LOCAL': 'http://localhost:9091/api/get-gateway-data/' 
 }
