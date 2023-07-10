@@ -16,6 +16,11 @@ def decrypt_file(input_file, output_file, key):
     ciphertext = base64.b64decode(encoded_ciphertext)
     decrypted_data = cipher.decrypt(ciphertext)
     plaintext = unpad(decrypted_data, AES.block_size)
+    plaintext_lines = plaintext.decode().splitlines()
+
+    for line in plaintext_lines:
+        print(line)
+        
     with open(output_file, 'wb') as file:
         file.write(plaintext)
 

@@ -32,12 +32,12 @@ def decrypt_file(input_file, key):
 
 CURRENT_ENV = 'LOCAL'
 API_ENV = 'POC'
-
 now = datetime.datetime.utcnow()
 utctime = (now.strftime("%Y-%m-%d %H:%M:%S"))
 
 DROP_TABLE_NODEDETAILS_IF_EXIST_QUERY = "DROP TABLE IF EXISTS node_details"
 DROP_TABLE_NODECONFIG_IF_EXIST_QUERY = "DROP TABLE IF EXISTS node_config"
+DROP_TABLE_GATEWAYS_IF_EXIST_QUERY = "DROP TABLE IF EXISTS gateways"
 CREATE_NODEDETAILS_TABLE_QUERY = """CREATE TABLE node_details (
     NetworkID TEXT,
     NodeID TEXT,
@@ -63,6 +63,12 @@ CREATE_NODECONFIG_TABLE_QUERY = """CREATE TABLE node_config (
     Measurement TEXT,
     UnitOfMeasurement TEXT
 )"""
+CREATE_GATEWAY_TABLE_QUERY = """CREATE TABLE gateways (
+    NetworkID TEXT,
+    SinkID TEXT,
+    gateway_name TEXT,
+    location TEXT
+)"""
 INSERT_DATA_NODEDETAILS_TABLE_QUERY = """
     INSERT INTO node_details(NetworkID,NodeID,ServiceID,SystemID,AreaID,Config,NodeType,Status,NodeName,postal_code,BuildingName,BuildingLevel,SectorName,ApplicationCode,ApplicationName)
     VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
@@ -71,9 +77,12 @@ INSERT_DATA_NODECONFIG_TABLE_QUERY = """
     INSERT INTO node_config(AreaID,NodeType,Config,ConfigName,Measurement,UnitOfMeasurement)
     VALUES (?,?,?,?,?,?)
 """
+INSERT_DATA_GATEWAYS_TABLE_QUERY = """
+    INSERT INTO gateways(NetworkID,SinkID,gateway_name,location)
+    VALUES (?,?,?,?)
+"""
 
 def executeSqliteQueryByTable(sqlite_cursor, DROPQUERY, CREATETABLEQUERY, INSERTQUERY, DATALIST):
-    
     sqlite_cursor.execute(DROPQUERY)
     sqlite_cursor.execute(CREATETABLEQUERY)
     sqlite_cursor.executemany(INSERTQUERY, DATALIST)
@@ -95,7 +104,7 @@ def printTotalRowsByTable(table, rowcount):
 
 API_URL = {
     'POC': 'https://mapi-ljdigitalsmart.com/api/get-gateway-data/',
-    'AZURE': 'https://ljd-az-api01.southeastasia.cloudapp.azure.com',
+    'AZURE': 'https://ljd-az-api01.southeastasia.cloudapp.azure.com/api/get-gateway-data/',
 }
 
 env_api_url = {
@@ -138,7 +147,7 @@ try:
     key = read_aes_key_from_file(aes_file)
     networkid, sinkid = decrypt_file(input_file, key)
     app_key = apiFile[0]
-    data = {'app_key': app_key, 'access_name': 'smart_gateway_' + networkid}
+    data = {'app_key': app_key, 'access_name': 'smart_gateway_' + networkid, 'sink': sinkid}
     
     api_url = env_api_url[CURRENT_ENV] + networkid
     
@@ -163,24 +172,32 @@ try:
     jsonData = res.json()
     nodeList = jsonData['nodeList']
     configList = jsonData['configList']
+    gatewayList = jsonData.get('gatewayList', [])
     configListValues = []
     nodeListValues = []
+    gatewayListValues = []
     for key in configList:
         configListValues.append(list(key.values()))
 
     for key in nodeList:
         nodeListValues.append(list(key.values()))
 
+    for key in gatewayList:
+        gatewayListValues.append(list(key.values()))
+
     printTotalRowsByTable('node details', len(jsonData['nodeList']))
     printTotalRowsByTable('node config', len(jsonData['configList']))
+    printTotalRowsByTable('gateways', len(gatewayList))
+
     sqlite_cursor = sqlite_connection.cursor()
     
     executeSqliteQueryByTable(sqlite_cursor, DROP_TABLE_NODEDETAILS_IF_EXIST_QUERY, CREATE_NODEDETAILS_TABLE_QUERY, INSERT_DATA_NODEDETAILS_TABLE_QUERY, nodeListValues)
     executeSqliteQueryByTable(sqlite_cursor, DROP_TABLE_NODECONFIG_IF_EXIST_QUERY, CREATE_NODECONFIG_TABLE_QUERY, INSERT_DATA_NODECONFIG_TABLE_QUERY, configListValues)
+    executeSqliteQueryByTable(sqlite_cursor, DROP_TABLE_GATEWAYS_IF_EXIST_QUERY, CREATE_GATEWAY_TABLE_QUERY, INSERT_DATA_GATEWAYS_TABLE_QUERY, gatewayListValues)
 
     network_address=networkid
     status='Active'
-    
+    # GET_NODELIST_QUERY = 'SELECT * FROM node_details'
     GET_INDICATOR_NODEID_BY_ID_QUERY = 'SELECT NodeID FROM node_details where Status="{status}" AND NetworkID = "{network}" AND NodeType="IndicatorPanel"'.format(
                             network=network_address,
                             status=status
@@ -192,9 +209,11 @@ try:
     
     if indicatorNodes != None and len(indicatorNodes) != 0:
         for indicatorNode in indicatorNodes:
-            print(indicatorNode, "meron")
+            print(indicatorNode, "exist")
     else:
-        print("shits")
+        print("No indicator found")
+
+    sqlite_connection.commit()
 
 except sqlite3.Error as e:
     print(utctime, "Error reading data from SQLite3 table", e)
