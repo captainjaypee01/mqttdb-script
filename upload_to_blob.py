@@ -8,6 +8,8 @@ import hashlib
 import argparse
 from time import time, sleep
 from azure.storage.blob import BlobServiceClient, BlobClient, ContentSettings
+from azure.core.exceptions import ResourceNotFoundError, HttpResponseError
+from dotenv import load_dotenv
 
 
 def generate_auth_header(storageKey, accountName, storageName, method, blobName, fileSize, currentDate, contentType):
@@ -84,25 +86,31 @@ def upload_to_azure_blob(storageKey, accountName, storageName, fileToUpload, blo
     return False
 
 def upload_blob_service_to_azure_blob(storageKey, accountName, storageName, fileToUpload, blobName, fileSize, destinationUrl, contentType):
-    # Initialize the BlobServiceClient
-    blob_service_client = BlobServiceClient(account_url=f"https://{accountName}.blob.core.windows.net", credential=storageKey)
+    try:
+        # Initialize the BlobServiceClient
+        blob_service_client = BlobServiceClient(account_url=f"https://{accountName}.blob.core.windows.net", credential=storageKey)
 
-    # Get a reference to the container
-    container_client = blob_service_client.get_container_client(storageName)
+        # Get a reference to the container
+        container_client = blob_service_client.get_container_client(storageName)
 
-    # Upload the blob with overwrite=True to enable overwriting if the blob already exists
-    blob_client = container_client.get_blob_client(blobName)
-    response = blob_client.upload_blob(data=fileToUpload, overwrite=True, content_settings=ContentSettings(content_type=contentType))
-    #container_client.upload_blob(name=blobName, data=fileToUpload, content_settings=ContentSettings(content_type=contentType))
-    
-    # Check the HTTP status code
-    if response.status_code == 201:
+        # Upload the blob with overwrite=True to enable overwriting if the blob already exists
+        blob_client = container_client.get_blob_client(blobName)
+        response = blob_client.upload_blob(data=fileToUpload, overwrite=True, content_settings=ContentSettings(content_type=contentType))
+        #container_client.upload_blob(name=blobName, data=fileToUpload, content_settings=ContentSettings(content_type=contentType))
         log_message(f"Uploaded: {blobName} to Azure Blob Storage successfully.")
         return True
-    else:
-        log_message(f"Failed to upload {blobName}. Status code: {response.status_code}")
-
-    return False
+    
+    except ResourceNotFoundError as not_found_error:
+        # Handle the case where the container or blob does not exist
+        log_message(f"Resource not found error: {not_found_error}")
+    except HttpResponseError as http_error:
+        # Handle other HTTP response errors (e.g., access denied, invalid credentials)
+        log_message(f"HTTP response error: {http_error}")
+    except Exception as e:
+        # Handle other exceptions
+        log_message(f"Failed to upload {blobName}. {str(e)}")
+    finally:
+        return False
 
 def upload_large_file_to_azure_blob(storageKey, accountName, storageName, fileToUpload, blobName, fileSize, destinationUrl, contentType):
     currentDate = datetime.datetime.utcnow().strftime('%a, %d %b %Y %H:%M:%S GMT')
@@ -232,9 +240,20 @@ def main():
     parser.add_argument("--content_type", required=True, help="Content Type of the file")
     args = parser.parse_args()
 
+    # Load environment variables from the .env file
+    dotenv_path = '/boot/azure_blob/azure.env'
+    # dotenv_path = './environment/azure.env'
+    load_dotenv(dotenv_path)
+
     # Azure Blob Storage account settings
-    account_name = "cs1100320010b13d994"
-    account_key = "+ujBAb74G/NkJkW0EAhemAUQWINx2IiZtGgUYIUGu2c2xWCgSQTYbdhgfKKjQGSvQ/04yQjcnfkUlqKIGWJM9Q=="
+    # Access the environment variables
+    account_name = os.getenv('ACCOUNT_NAME')
+    account_key = os.getenv('ACCOUNT_KEY')
+
+    if account_name is None and account_key is None:
+        log_message("Credentials not set")
+        sys.exit(0)
+
     # container_name = "backup-poc"
     directory_path = args.directory
     container_name = args.container
