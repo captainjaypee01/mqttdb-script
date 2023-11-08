@@ -13,7 +13,7 @@ def export_aes_key(key, output_file):
 CURRENT_ENV = "LOCAL"
 env_output_file = {
     "LOCAL": "aes-key",
-    "PROD": '/boot/wirepas/aes-key',
+    "PROD": '/home/smart/wd/aes-key',
 }
 # Example usage
 key = generate_aes_key()

@@ -113,8 +113,8 @@ env_api_url = {
     'LOCAL': 'http://localhost:9091/api/get-gateway-data/' 
 }
 env_apikey_url = {
-    'PROD': '/boot/wirepas/api_key',
-    'UAT': '/boot/wirepas/api_key',
+    'PROD': '/home/smart/wd/api_key',
+    'UAT': '/home/smart/wd/api_key',
     'LOCAL': 'api_key' 
 }
 env_db_name = {
@@ -124,8 +124,8 @@ env_db_name = {
 }
 env_aes_file = {
     "LOCAL": "aes-key",
-    "UAT": '/boot/wirepas/aes-key',
-    "PROD": '/boot/wirepas/aes-key',
+    "UAT": '/home/smart/wd/aes-key',
+    "PROD": '/home/smart/wd/aes-key',
 }
 env_network_file = {
     "LOCAL": "network.bin",

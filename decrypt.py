@@ -27,7 +27,7 @@ def decrypt_file(input_file, output_file, key):
 CURRENT_ENV = "LOCAL"
 env_aes_file = {
     "LOCAL": "aes-key",
-    "PROD": '/boot/wirepas/aes-key',
+    "PROD": '/home/smart/wd/aes-key',
 }
 env_input_file = {
     "LOCAL": "network.bin",

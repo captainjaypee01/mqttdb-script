@@ -97,19 +97,19 @@ def upload_blob_service_to_azure_blob(storageKey, accountName, storageName, file
         blob_client = container_client.get_blob_client(blobName)
         response = blob_client.upload_blob(data=fileToUpload, overwrite=True, content_settings=ContentSettings(content_type=contentType))
         #container_client.upload_blob(name=blobName, data=fileToUpload, content_settings=ContentSettings(content_type=contentType))
-        log_message(f"Uploaded: {blobName} to Azure Blob Storage successfully.")
         return True
     
     except ResourceNotFoundError as not_found_error:
         # Handle the case where the container or blob does not exist
         log_message(f"Resource not found error: {not_found_error}")
+        return False
     except HttpResponseError as http_error:
         # Handle other HTTP response errors (e.g., access denied, invalid credentials)
         log_message(f"HTTP response error: {http_error}")
+        return False
     except Exception as e:
         # Handle other exceptions
         log_message(f"Failed to upload {blobName}. {str(e)}")
-    finally:
         return False
 
 def upload_large_file_to_azure_blob(storageKey, accountName, storageName, fileToUpload, blobName, fileSize, destinationUrl, contentType):
@@ -211,15 +211,17 @@ def upload_files(account_key, account_name, container_name, container_url, direc
                             isUploadSuccess = upload_blob_service_to_azure_blob(account_key, account_name, container_name, data, blob_name, fileSize, blob_url, content_type)
                         else:
                             isUploadSuccess = upload_blob_service_to_azure_blob(account_key, account_name, container_name, data, blob_name, fileSize, blob_url, content_type)
-                    
+
+                    # log_message(f"IsUploadSuccess: {isUploadSuccess}")
                     if isUploadSuccess:
+                        log_message(f"Uploaded: {blob_name} to Azure Blob Storage successfully.")
                         log_message(f"Deleting: {blob_name} | {file_path}")
                         sleep(1)
                         os.remove(file_path)
                         log_message(f"Successfully Deleted: {blob_name}")
 
-                else:
-                    log_message(f"Skipping: {blob_name} | {file_timestamp} | {threshold_date}")
+                # else:
+                #     log_message(f"Skipping: {blob_name} | {file_timestamp} | {threshold_date}")
 
     log_message("Upload completed.")
 

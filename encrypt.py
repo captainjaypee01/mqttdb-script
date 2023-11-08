@@ -22,7 +22,7 @@ CURRENT_ENV = "PROD"
 
 env_aes_file = {
     "LOCAL": "aes-key",
-    "PROD": '/boot/wirepas/aes-key',
+    "PROD": '/home/smart/wd/aes-key',
 }
 env_input_file = {
     "LOCAL": "network",
